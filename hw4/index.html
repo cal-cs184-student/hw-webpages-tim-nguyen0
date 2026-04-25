@@ -1,109 +1,440 @@
-<html>
-	<head>
-		<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.4/MathJax.js?config=default'></script>
-		<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-		<style>
-			h1 {
-				text-align: center;
-			}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CS184 HW4 Write-Up</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.4/MathJax.js?config=default"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --bg: #f6f8fb;
+        --card: #ffffff;
+        --text: #1f2937;
+        --muted: #6b7280;
+        --accent: #2563eb;
+        --border: #e5e7eb;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Inter, sans-serif;
+        color: var(--text);
+        background: var(--bg);
+        line-height: 1.55;
+      }
+      .container {
+        max-width: 1060px;
+        margin: 32px auto;
+        padding: 0 20px 48px;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 18px;
+      }
+      h1, h2, h3 { margin: 0 0 12px; font-weight: 400; }
+      h1 { font-size: 1.9rem; text-align: center; }
+      h2 { font-size: 1.35rem; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+      h3 { font-size: 1rem; color: var(--accent); }
+      .meta { text-align: center; color: var(--muted); margin-bottom: 4px; }
+      .links { text-align: center; margin-top: 12px; }
+      a { color: var(--accent); }
+      .todo { color: #b91c1c; font-weight: 400; }
+      .image-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 14px;
+      }
+      figure {
+        margin: 0;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px;
+        background: #fff;
+      }
+      figure img {
+        width: 100%;
+        display: block;
+        border-radius: 6px;
+        border: 1px solid #f1f1f1;
+      }
+      figcaption {
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+      figure.figure-compact {
+        max-width: min(380px, 100%);
+        margin-left: auto;
+        margin-right: auto;
+      }
+      code {
+        background: transparent;
+        padding: 0;
+        border-radius: 0;
+        font-family: inherit;
+        font-size: inherit;
+      }
+      strong, b, em, i { font-weight: 400; font-style: normal; }
+      table.bench {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.92rem;
+        margin: 14px 0;
+      }
+      table.bench th,
+      table.bench td {
+        border: 1px solid var(--border);
+        padding: 8px 10px;
+        text-align: left;
+        vertical-align: top;
+      }
+      table.bench th { background: #f9fafb; color: var(--muted); font-weight: 600; }
+      table.bench td.num { font-variant-numeric: tabular-nums; text-align: right; }
+      table.bench caption {
+        caption-side: bottom;
+        text-align: left;
+        color: var(--muted);
+        font-size: 0.85rem;
+        margin-top: 8px;
+      }
+      section.extra-credit {
+        margin-top: 28px;
+      }
+      section.extra-credit > h2.extra-credit-category {
+        margin: 0 0 10px;
+        font-size: 1.35rem;
+        font-weight: 400;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 8px;
+      }
+      section.extra-credit > .extra-credit-blurb {
+        margin: 0 0 18px;
+        color: var(--muted);
+        line-height: 1.55;
+      }
+      @media print {
+        :root {
+          --bg: #ffffff;
+          --card: #ffffff;
+          --text: #111827;
+          --border: #d1d5db;
+        }
+        body { background: #ffffff; }
+        .container {
+          max-width: none;
+          margin: 0;
+          padding: 0;
+        }
+        .card {
+          border: 1px solid var(--border);
+          border-radius: 0;
+          margin: 0 0 12px;
+          padding: 14px;
+          page-break-inside: avoid;
+          break-inside: avoid;
+        }
+        figure {
+          page-break-inside: avoid;
+          break-inside: avoid;
+        }
+        a { color: #1d4ed8; text-decoration: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <section class="card">
+        <h1>CS184/284A Homework 4: ClothSim</h1>
+        <p class="meta">Name: <span class="todo">Tim Nguyen</span> | SID: <span class="todo">3041354670</span></p>
+      </section>
 
-			.container {
-				margin: 0 auto;
-				padding: 60px 20%;
-			}
+      <section class="card">
+        <h2>Overview</h2>
+        <p>
+          In this write-up I document a complete cloth simulation pipeline based on a mass-spring model.
+          Starting from a rectangular cloth parameterization, I build a row-major grid of point masses, connect
+          them with structural, shearing, and bending springs, and simulate motion using force accumulation and Verlet integration,
+          with additional deformation constraints to keep the system stable. I then extend the system with collisions against scene primitives
+          (sphere and plane), cloth self-collision via spatial hashing, and a set of GLSL shaders for real-time lighting,
+          texturing, bump and displacement mapping, and mirror-like environment reflections.
+        </p>
+        <p>
+          Throughout, we relate each pipeline stage to its visible effect: physically, parameters such as spring stiffness, damping, and density
+          noticeably change how the cloth falls and settles; visually, shader choices strongly change perceived material quality even when geometry is unchanged.
+          My main engineering challenge was balancing realism and stability; in particular, self-collision and spring-length correction
+          required tuning to avoid things like excessive jitter or clipping or other unstable behavior.
+        </p>
+      </section>
 
-			figure {
-				text-align: center;
-			}
+      <section class="card">
+        <h2>Part 1: Masses and Springs</h2>
+        <h3>Implementation</h3>
+        <p>
+          This part works in two stages, similar to how I usually describe rasterization steps. First, I create every point
+          mass in row-major order. For a horizontal sheet, points are placed in xz with y fixed at 1. For a vertical sheet,
+          points are placed in xy with a small random z offset so the cloth does not start perfectly flat.
+          I map 2D indices to the linear array with idx = y * num_width_points + x.
+        </p>
+        <p>
+          Second, I connect springs after all points exist. I add structural springs to left and upper neighbors, shearing
+          springs to upper-left and upper-right, and bending springs two points away in the same row or column. I also check
+          pinned coordinates while building the grid, so fixed points are locked from the start. This order avoids boundary bugs
+          and keeps the mesh setup predictable.
+        </p>
+        <div class="image-grid">
+          <figure><img src="./images/p1_no_shearing.png" alt="Part 1 no shearing" /><figcaption>No shearing constraints.</figcaption></figure>
+          <figure><img src="./images/p1_only_shearing.png" alt="Part 1 only shearing" /><figcaption>Only shearing constraints.</figcaption></figure>
+          <figure><img src="./images/p1_all_constraints.png" alt="Part 1 all constraints" /><figcaption>All constraints.</figcaption></figure>
+        </div>
+      </section>
 
-			img {
-				display: inline-block;
-			}
+      <section class="card">
+        <h2>Part 2: Numerical Integration</h2>
+        <h3>Implementation</h3>
+        <p>
+          This simulation step also breaks into stages. First, I clear and accumulate forces: gravity/external accelerations,
+          then spring forces with equal and opposite updates at each endpoint. If a spring type is disabled in the GUI, I skip it.
+          Bending uses a smaller scale factor so it behaves softer than structural and shearing springs.
+        </p>
+        <p>
+          Next, I update positions with damped Verlet, then run collisions, then apply the 10% spring-length clamp.
+          In practice, this order made behavior much more stable for me than trying to clamp too early. The cloth keeps its shape
+          better and I get fewer exploding frames when parameters are pushed.
+        </p>
+        <h3>Parameter Study</h3>
+        <p>
+          Spring constant ks: low ks gives a stretchier sheet with deeper sag and larger folds; high ks looks stiffer and holds shape.
+          I kept everything else fixed while changing only ks so the comparison is clean.
+        </p>
+        <p>
+          Density: higher density makes the sheet feel heavier and hit objects harder. Lower density makes motion lighter and slower.
+        </p>
+        <p>
+          Damping: higher damping kills motion faster, while lower damping keeps oscillations around longer.
+        </p>
+        <div class="image-grid">
+          <figure><img src="./images/p2_lowks.png" alt="Part 2 ks low" /><figcaption>Low ks behavior.</figcaption></figure>
+          <figure><img src="./images/p2_highks.png" alt="Part 2 ks high" /><figcaption>High ks behavior.</figcaption></figure>
+          <figure><img src="./images/p2_lowdensity.png" alt="Part 2 density low" /><figcaption>Low density behavior.</figcaption></figure>
+          <figure><img src="./images/p2_highdensity.png" alt="Part 2 density high" /><figcaption>High density behavior.</figcaption></figure>
+          <figure><img src="./images/p2_low-damping.png" alt="Part 2 damping low" /><figcaption>Low damping behavior.</figcaption></figure>
+          <figure><img src="./images/p2_high-damping.png" alt="Part 2 damping high" /><figcaption>High damping behavior.</figcaption></figure>
+        </div>
+      </section>
 
-			body {
-				font-family: 'Inter', sans-serif;
-			}
-		</style>
-	</head>
-	<body>
-		<div class="container">
-		<h1>CS184/284A Spring 2025 Homework 4 Write-Up</h1>
-		<div style="text-align: center;">Names: </div>
+      <section class="card">
+        <h2>Part 3: Collisions with Primitives</h2>
+        <h3>Implementation</h3>
+        <p>
+          I handled primitive collisions in two straightforward checks. For spheres, I check if a point is inside the radius and,
+          if so, project it back to the surface along the radial direction, with friction scaling applied from the previous position.
+        </p>
+        <p>
+          For planes, I check whether the point crossed the plane between the last and current position. If it did, I compute the
+          intersection point, offset slightly to stay on the correct side, then apply friction in the same style as the sphere case.
+          Every point mass is tested against each collision object each step.
+        </p>
+        <p>
+          The screenshots in this section show baseline primitive collisions using one sphere scene and one plane scene.
+          The sphere case highlights smooth curved contact and draping around convex geometry, while the plane case shows
+          broad contact and settling on a flat support.
+        </p>
+        <div class="image-grid">
+          <figure><img src="./images/p3_sphere.png" alt="Sphere collision result" /><figcaption>Cloth draping over a sphere.</figcaption></figure>
+          <figure><img src="./images/p3_plane.png" alt="Plane collision result" /><figcaption>Cloth settling on a plane.</figcaption></figure>
+        </div>
+      </section>
 
-		<br>
+      <section class="card">
+        <h2>Part 4: Self-Collisions</h2>
+        <h3>Implementation</h3>
+        <p>
+          I handle self-collision with spatial hashing to avoid an O(n^2) all-pairs check. In
+          <code>hash_position</code>, I partition space into 3D boxes with dimensions
+          <code>w = 3*width/num_width_points</code>, <code>h = 3*height/num_height_points</code>, and
+          <code>t = max(w, h)</code>, and hash integer cell coordinates into a scalar key. In
+          <code>build_spatial_map</code>, I clear the previous map and insert each point-mass pointer into its bucket.
+        </p>
+        <p>
+          In <code>self_collide</code>, each point mass considers only candidates in the same bucket. For neighbors within
+          <code>2 * thickness</code>, I compute a repulsion correction that pushes the mass just outside the threshold.
+          I average pairwise corrections and scale by <code>simulation_steps</code> before application, skipping self-pairs and
+          pinned masses. This design keeps runtime practical while significantly reducing cloth self-intersection.
+        </p>
+        <p>
+          In the self-collision experiments shown below, larger density causes stronger collapse and stacking, while larger ks preserves local shape
+          and reduces deep fold penetration. The final frame uses default parameters, and the additional snapshots show density and ks variants.
+        </p>
+        <div class="image-grid">
+          <figure><img src="./images/p4_early.png" alt="Self collision early" /><figcaption>Early self-collision.</figcaption></figure>
+          <figure><img src="./images/p4_middle.png" alt="Self collision mid" /><figcaption>Mid simulation folding.</figcaption></figure>
+          <figure><img src="./images/p4_rest.png" alt="Self collision rest" /><figcaption>Rest-like state.</figcaption></figure>
+          <figure><img src="./images/p4_highdensity.png" alt="High density self-collision" /><figcaption>High density variation.</figcaption></figure>
+          <figure><img src="./images/p4_lowks.png" alt="Low ks self-collision" /><figcaption>Low ks variation.</figcaption></figure>
+          <figure><img src="./images/p4_highdensitylowks.png" alt="High density and low ks self-collision" /><figcaption>High density + low ks.</figcaption></figure>
+        </div>
+      </section>
 
-		Link to webpage: (TODO) <a href="https://cs184.eecs.berkeley.edu/sp25">cs184.eecs.berkeley.edu/sp25</a>
+      <section class="card">
+        <h2>Part 5: Shaders</h2>
+        <h3>Conceptual Explanation</h3>
+        <p>
+          Following common usage, we treat a shader program as a matched pair of GPU stages (vertex + fragment) that run massively in parallel during rendering.
+          The vertex shader transforms per-vertex attributes (position, normal, tangent, uv) into world/screen-space values
+          and passes interpolated varyings to the fragment shader. The fragment shader then computes the final per-fragment
+          color from those varyings plus scene uniforms (lights, textures, camera position, material parameters).
+          In the pipeline I built, this separation makes it practical to combine geometric transformations with material and lighting effects in real time.
+        </p>
+        <h3>Shader Modes Used</h3>
+        <p>
+          In this implementation, Phong is available as a single shader mode rather than separate runtime toggles for
+          ambient-only, diffuse-only, and specular-only outputs. I therefore present one representative Phong result and then
+          compare it with the other available shaders in the dropdown: Normal, Diffuse, Texture, Bump, Displacement, and Mirror.
+        </p>
+        <p>
+          Beyond Blinn-Phong, I also provide diffuse shading, texture mapping, bump mapping, displacement mapping, and environment-mapped
+          mirror reflection. For bump versus displacement: bump mapping perturbs normals only (lighting detail without
+          changing underlying geometry), while displacement mapping moves vertex positions and therefore changes silhouette and geometry,
+          especially on coarse meshes.
+        </p>
+        <div class="image-grid">
+          <figure><img src="./images/p5_normal.png" alt="Normal shader" /><figcaption>Normal shader.</figcaption></figure>
+          <figure><img src="./images/p5_phong.png" alt="Phong shader" /><figcaption>Phong shader.</figcaption></figure>
+          <figure><img src="./images/p5_diffuse.png" alt="Diffuse shader" /><figcaption>Diffuse shader.</figcaption></figure>
+          <figure><img src="./images/p5_texture.png" alt="Texture shader" /><figcaption>Texture shader.</figcaption></figure>
+          <figure><img src="./images/p5_bump.png" alt="Bump shader" /><figcaption>Bump shader.</figcaption></figure>
+          <figure><img src="./images/p5_displacement.png" alt="Displacement shader" /><figcaption>Displacement shader.</figcaption></figure>
+          <figure><img src="./images/p5_mirror.png" alt="Mirror shader" /><figcaption>Mirror shader.</figcaption></figure>
+        </div>
+      </section>
 
-		<br>
+      <section class="extra-credit" aria-labelledby="extra-credit-heading">
+        <h2 id="extra-credit-heading" class="extra-credit-category">Extra Credit</h2>
+        <p class="extra-credit-blurb">
+          Beyond this, I implemented a few more things from the handout: spatially varying wind, an optional BVH alongside the spatial
+          hash for self-collision, OpenMP on the hash path, GUI controls to move obstacles and the cloth, and extra rigid primitives
+          (box and capsule). The sections below describe each addition and how it differs from the baseline behavior where that matters.
+        </p>
 
-		Link to GitHub repository: (TODO) <a href="https://cs184.eecs.berkeley.edu/sp25">cs184.eecs.berkeley.edu/sp25</a>
+        <section class="card">
+          <h2>Spatially varying wind</h2>
+          <p>
+            I add an external force per point mass from a smooth vector field built from sin and cos of position and time, with strength
+            and frequency set in the cloth JSON (<code>enable_wind</code>, <code>wind_strength</code>, <code>wind_frequency</code>). Compared with
+            gravity alone, the sheet folds and drifts along a time-varying direction instead of staying in one sagging plane. The
+            animation below uses <code>scene/extra_wind.json</code>.
+          </p>
+          <div class="image-grid">
+            <figure><img src="./images/extra_wind.gif" alt="Wind feature animation" /><figcaption>Wind animation (<code>extra_wind.json</code>).</figcaption></figure>
+          </div>
+        </section>
 
-		<figure>
-			<img src="clothsim.png" alt="Cloth draped over sphere" style="width:70%"/>
-			<figcaption>You can add images with captions!</figcaption>
-		</figure>
+        <section class="card">
+          <h2>Self-collision: AABB BVH vs. uniform spatial hashing</h2>
+          <p>
+            The default path hashes each particle into a cell and tests only masses stored in that bucket. I also provide an optional
+            axis-aligned BVH over the particles and query the tree with a neighborhood of radius about <code>2 * thickness</code> around
+            each point. The self-collision correction is the same as in the hash path; only candidate selection changes.
+          </p>
+          <div class="image-grid">
+            <figure><img src="./images/extrA_alternate_self_collision.png" alt="BVH vs hash self-collision" /><figcaption>Alternate self-collision comparison (BVH and spatial hash).</figcaption></figure>
+          </div>
+        </section>
 
-		<!--
-		We've already added one heading per part, to make your write-up as navigable when grading. Please fit your write-up within these sections!
-		-->
+        <section class="card">
+          <h2>OpenMP optimization for spatial hash self-collision</h2>
+          <p>
+            For the spatial hash path I parallelized self-collision with OpenMP using a snapshot-and-apply scheme: copy positions,
+            accumulate per-particle correction vectors in parallel, then apply them in a separate pass so threads do not write the same
+            positions concurrently. The build enables this when OpenMP is found; otherwise the code uses the original sequential loop.
+          </p>
+          <p>
+            Pressing <code>B</code> while the app runs records several hundred steps and prints average step time and self-collision time,
+            together with <code>omp_build</code> and <code>parallel_self_coll</code> so runs are comparable across configurations (BVH
+            self-collision does not use the OpenMP hash loop, so that flag reads <code>n/a</code> there).
+          </p>
+          <table class="bench">
+            <caption>
+              Same machine and scene, 600 simulation steps per run (in-app benchmark after <code>B</code>). Values are averaged milliseconds per step.
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Self-collision mode</th>
+                <th scope="col">OpenMP build</th>
+                <th scope="col">Parallel self-collision</th>
+                <th scope="col" class="num">Avg step (ms)</th>
+                <th scope="col" class="num">Avg self-collision (ms)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>BVH</td>
+                <td>yes</td>
+                <td>n/a (BVH path is sequential)</td>
+                <td class="num">1.216</td>
+                <td class="num">1.135</td>
+              </tr>
+              <tr>
+                <td>Spatial hash</td>
+                <td>yes</td>
+                <td>on</td>
+                <td class="num">0.481</td>
+                <td class="num">0.396</td>
+              </tr>
+              <tr>
+                <td>Spatial hash</td>
+                <td>no</td>
+                <td>off</td>
+                <td class="num">0.415</td>
+                <td class="num">0.332</td>
+              </tr>
+            </tbody>
+          </table>
+          <p>
+            On this run the BVH configuration is substantially slower: self-collision accounts for most of the step time, and the average
+            step is roughly three times the spatial-hash results. That is consistent with rebuilding and traversing a tree each step versus
+            hashing each particle into a small local bucket.
+          </p>
+          <p>
+            For spatial hashing alone, the OpenMP build with parallel self-collision enabled was slightly slower than a build with OpenMP
+            disabled, on the order of 0.07 ms per step. Synchronization, scheduling, and the extra snapshot passes likely dominate at
+            this mesh size; a larger cloth or fewer competing threads might change the picture. The table reflects one machine and setup,
+            not a full performance study.
+          </p>
+        </section>
 
-		<h2>Overview</h2>
-		Give a high-level overview of what you implemented in this homework. Think about what you've built as a whole. Share your thoughts on what interesting things you've learned from completing the homework.
+        <section class="card">
+          <h2>Moving objects and cloth from the GUI</h2>
+          <p>
+            I added a Scene (extra) NanoGUI window with numeric fields for the sphere center, a plane reference point, and rigid
+            translations of the box and capsule. A separate “Cloth rigid shift” applies a one-time translation to all point masses
+            (current, previous, and rest positions) so the cloth can be repositioned without editing scene files. Together with pause and
+            step, this makes it straightforward to adjust obstacles or the sheet and compare outcomes under fixed parameters.
+          </p>
+          <div class="image-grid">
+            <figure class="figure-compact"><img src="./images/extra_gui.png" alt="Scene extra GUI" /><figcaption>Scene (extra) panel with BVH toggle and object controls.</figcaption></figure>
+          </div>
+        </section>
 
-		<h2>Part 1: Masses and springs</h2>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-
-		<p>Here is an example 2x2 gridlike structure using an HTML table. Each <b>tr</b> is a row and each <b>td</b> is a column in that row. You might find this useful for framing and showing your result images in an organized fashion.</p>
-		<div style="display: flex; flex-direction: column; align-items: center;">
-			<table style="width: 100%; text-align: center; border-collapse: collapse;">
-			  <tr>
-				<td style="text-align: center;">
-				  <img src="clothsim.png" width="400px"/>
-				  <figcaption>Caption goes here.</figcaption>
-				</td>
-				<td style="text-align: center;">
-				  <img src="clothsim.png" width="400px"/>
-				  <figcaption>Caption goes here.</figcaption>
-				</td>
-			  </tr>
-			  <tr>
-				<td style="text-align: center;">
-				  <img src="clothsim.png" width="400px"/>
-				  <figcaption>Caption goes here.</figcaption>
-				</td>
-				<td style="text-align: center;">
-				  <img src="clothsim.png" width="400px"/>
-				  <figcaption>Caption goes here.</figcaption>
-				</td>
-			  </tr>
-			</table>
-		</div>
-
-		<h2>Part 2: Simulation via numerical integration</h2>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-
-		<h2>Part 3: Handling collisions with other objects</h2>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-
-		<h2>Part 4: Handling self-collisions</h2>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-
-		<h2>Part 5: Shaders</h2>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-
-		<h2>(Optional) Part 6: Extra Credit - Additional cloth simulation features!</h2>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-		
-		<h2>Additional Notes (please remove)</h2>
-		<ul>
-			<li>You can also add code if you'd like as so: <code>code code code</code></li>
-			<li>If you'd like to add math equations, 
-				<ul>
-					<li>You can write inline equations like so: \( a^2 + b^2 = c^2 \)</li>
-					<li>You can write display equations like so: \[ a^2 + b^2 = c^2 \]</li>
-				</ul>
-			</li>
-		</ul>
-		</div>
-	</body>
+        <section class="card">
+          <h2>Additional rigid primitives</h2>
+          <p>
+            Beyond the sphere and plane required in the assignment, I support collision and scene loading for an axis-aligned box and a
+            capsule (segment between <code>a</code> and <code>b</code>), using the same friction-weighted projection style as the sphere.
+            The box pushes interior particles to the nearest face along the shortest penetration axis; the capsule uses the closest point
+            on the segment. These primitives produce edge and elongated contacts that differ from sphere-only setups. Example scenes:
+            <code>scene/extra_box.json</code>, <code>scene/extra_capsule.json</code>.
+          </p>
+          <div class="image-grid">
+            <figure><img src="./images/extra_box.png" alt="Box collision feature" /><figcaption>Box primitive (<code>extra_box.json</code>).</figcaption></figure>
+            <figure><img src="./images/extra_capsule.png" alt="Capsule collision feature" /><figcaption>Capsule primitive (<code>extra_capsule.json</code>).</figcaption></figure>
+          </div>
+        </section>
+      </section>
+    </div>
+  </body>
 </html>
